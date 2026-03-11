@@ -1106,17 +1106,20 @@ async function extractMetadata(transcript, filename) {
         .replace(/(?:please have|have)\s+[A-Za-z]+\s+(?:call|return)/gi, '');
 
       // Ultra-strict: only patterns where speaker unambiguously names themselves
-      // "Hey Jonathan" = greeting someone = NOT a match. "Stuart here" = match.
+      // "Hey Jonathan" = greeting someone = NOT a match. "Stuart here", "Jeff calling" = match.
       const strict = [
-        /\bthis is\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,           // "this is Stuart"
-        /\bit'?s\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*[,.]?\s*(?:calling|here|from|$)/,  // "it's Stuart calling"
-        /\bmy name(?:'?s|\s+is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,  // "my name is Stuart"
-        /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+here\b/m,             // "Stuart here"
-        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+speaking\b/,        // "Stuart speaking"
+        /\bthis is\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,                          // "this is Stuart"
+        /\bit'?s\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*[,.]?\s*(?:calling|here|from|$)/i, // "it's Stuart calling"
+        /\bmy name(?:'?s|\s+is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,            // "my name is Stuart"
+        /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+here\b/m,                           // "Stuart here" at start
+        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+here[,.]?\s/,                     // "Jeff here, calling about..."
+        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:calling|speaking|over here)\b/, // "Jeff calling", "Jeff speaking", "Jeff over here"
+        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+over here\b/i,                    // "Jeff over here"
+        /\bit'?s\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,.]?$/im,                    // "it's Jeff" at end of sentence
       ];
-      const skip = new Set(['The','A','An','Hi','Hey','Hello','Yes','No','So','Well','Just','This','That','Here','There','My','Your','Our','Their','It','Is','He','She','We','They','You','I']);
+      const skip = new Set(['The','A','An','Hi','Hey','Hello','Yes','No','So','Well','Just','This','That','Here','There','My','Your','Our','Their','It','Is','He','She','We','They','You','I','calling','speaking']);
       for (const re of strict) {
-        const m = transcript.match(re);  // use original transcript, not stripped
+        const m = transcript.match(re);
         if (m?.[1] && !skip.has(m[1].split(' ')[0])) return m[1].trim();
       }
       return '';

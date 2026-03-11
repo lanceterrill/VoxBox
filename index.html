@@ -1105,23 +1105,43 @@ async function extractMetadata(transcript, filename) {
         .replace(/(?:calling for|trying to reach|asking for|to reach|for|reaching out to)\s+[A-Za-z]+(?:\s+[A-Za-z]+){0,2}/gi, '')
         .replace(/(?:please have|have)\s+[A-Za-z]+\s+(?:call|return)/gi, '');
 
-      // Ultra-strict: only patterns where speaker unambiguously names themselves
-      // "Hey Jonathan" = greeting someone = NOT a match. "Stuart here", "Jeff calling" = match.
-      const strict = [
-        /\bthis is\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,                          // "this is Stuart"
-        /\bit'?s\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*[,.]?\s*(?:calling|here|from|$)/i, // "it's Stuart calling"
-        /\bmy name(?:'?s|\s+is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,            // "my name is Stuart"
-        /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+here\b/m,                           // "Stuart here" at start
-        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+here[,.]?\s/,                     // "Jeff here, calling about..."
-        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:calling|speaking|over here)\b/, // "Jeff calling", "Jeff speaking", "Jeff over here"
-        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+over here\b/i,                    // "Jeff over here"
-        /\bit'?s\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,.]?$/im,                    // "it's Jeff" at end of sentence
-      ];
+      // Only fill caller when speaker clearly identifies themselves or their org
       const skip = new Set(['The','A','An','Hi','Hey','Hello','Yes','No','So','Well','Just','This','That','Here','There','My','Your','Our','Their','It','Is','He','She','We','They','You','I','calling','speaking']);
-      for (const re of strict) {
-        const m = transcript.match(re);
-        if (m?.[1] && !skip.has(m[1].split(' ')[0])) return m[1].trim();
+
+      // Strip recipient phrases so we don't accidentally grab them
+      const t = transcript.replace(/(?:calling for|trying to reach|to reach|looking for|to speak with|have\s+\w+\s+call|Hey,?\s+\w+)[^,.]*/gi, '');
+
+      // 1. Name + org/place: "Stuart over here at Broadcast House" / "Stuart calling from Acme"
+      let m = t.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:here at|over here at|calling from|over at|from)\s+([A-Z][A-Za-z '&]+?)(?:[,.]|\s+(?:and|to|about|regarding|just)|$)/);
+      if (m?.[1] && m?.[2] && !skip.has(m[1].split(' ')[0])) return m[1].trim() + ' @ ' + m[2].trim();
+
+      // 2. Explicit name self-ID patterns
+      const namePatterns = [
+        /\bthis is\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,
+        /\bit'?s\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)(?:\s*[,.]|\s+(?:calling|here|from|speaking))/i,
+        /\bmy name(?:'?s|\s+is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,
+        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:here|calling|speaking|over here)\b/,
+      ];
+      for (const re of namePatterns) {
+        m = t.match(re);
+        if (m?.[1] && !skip.has(m[1].split(' ')[0])) {
+          // Check for org after the name
+          const orgM = transcript.slice(transcript.indexOf(m[1])).match(/(?:at|from|with|over at)\s+([A-Z][A-Za-z '&]+?)(?:[,.]|\s+(?:and|to|about)|$)/);
+          if (orgM?.[1]) return m[1].trim() + ' @ ' + orgM[1].trim();
+          return m[1].trim();
+        }
       }
+
+      // 3. No name — org/company/dept/role only
+      const orgM = t.match(/(?:calling from|this is|from)\s+([A-Z][A-Za-z '&]{2,30})(?:[,.]|\s+(?:and|to|about|regarding)|$)/);
+      if (orgM?.[1] && !skip.has(orgM[1].trim().split(' ')[0])) return '[' + orgM[1].trim() + ']';
+
+      const deptM = t.match(/(?:calling from|from)\s+(?:the\s+)?([A-Za-z]+\s+(?:department|dept|office|team|division))/i);
+      if (deptM?.[1]) return '[' + deptM[1].trim() + ']';
+
+      const roleM = t.match(/(?:I'm|I am)\s+your\s+([A-Za-z][A-Za-z\s]{2,30})(?:[,.]|$)/i);
+      if (roleM?.[1]) return '[' + roleM[1].trim() + ']';
+
       return '';
     })();
     const phoneM = transcript.match(/\b(\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4})\b/);
@@ -1140,7 +1160,7 @@ async function extractMetadata(transcript, filename) {
         temperature: 0,
         messages: [{
           role: 'system',
-          content: 'Extract info from a voicemail transcript. Return ONLY raw JSON: {"caller":"","phone":"","calldate":""}.\n\nFor CALLER: Leave blank ("") unless the speaker uses one of these EXACT self-introduction patterns:\n  - "this is [name]"\n  - "it\'s [name]" or "its [name]"\n  - "my name is [name]"\n  - "[name] here"\n  - "[name] speaking"\nDo NOT fill caller if a name only appears after words like: "for", "to reach", "trying to reach", "calling for", "looking for", "to speak with", "have", "tell", "ask", "Hey [name]" (greeting someone), or "please call [name]". A name being spoken TO is never the caller. If unsure, use "".\n\nFor PHONE: Only the callback number the caller explicitly leaves. Digits and dashes only.\nFor CALLDATE: Any date/time they mention. Empty string if none.'
+          content: 'Extract caller identity from a voicemail. Return ONLY raw JSON: {"caller":"","phone":"","calldate":""}. No markdown.\n\nFor CALLER use the best identifier in this priority:\n1. Name + org/place: return \"Name @ Place\" e.g. \"Stuart @ Broadcast House\"\n2. Name only: return the name e.g. \"Stuart\"\n3. No name but org/company/place: return \"[Org]\" e.g. \"[Broadcast House]\"\n4. No name but dept: return \"[Billing Dept]\" etc\n5. No name but role: return \"[Your Insurance Agent]\" etc\n6. Nothing clear: return \"\"\n\nValid self-ID patterns: \"this is X\", \"it\'s X\", \"my name is X\", \"X here\", \"X calling\", \"X speaking\", \"X over here\", \"X over here at Y\", \"X calling from Y\"\n\nNEVER use names after: \"for\", \"to reach\", \"trying to reach\", \"calling for\", \"Hey X\" (greeting), \"have X call\", \"please tell X\" — those are recipients not callers.\n\nFor PHONE: callback number left. Digits and dashes only. Empty if none.\nFor CALLDATE: any date/time mentioned. Empty if none.'
         }, {
           role: 'user',
           content: 'Transcript: ' + transcript

@@ -1105,20 +1105,19 @@ async function extractMetadata(transcript, filename) {
         .replace(/(?:calling for|trying to reach|asking for|to reach|for|reaching out to)\s+[A-Za-z]+(?:\s+[A-Za-z]+){0,2}/gi, '')
         .replace(/(?:please have|have)\s+[A-Za-z]+\s+(?:call|return)/gi, '');
 
-      const patterns = [
-        // Only hard explicit self-identification — no guessing
-        /(?:this is|it'?s)\s+([A-Za-z]+(?:\s+[A-Za-z]+){0,1})(?:\s*[,.]|\s+(?:calling|here|from|and|with))/i,
-        /(?:this is|it'?s)\s+([A-Za-z]+(?:\s+[A-Za-z]+){0,1})\s*$/im,
-        /my name(?:'?s|\s+is)\s+([A-Za-z]+(?:\s+[A-Za-z]+){0,1})/i,
-        /^([A-Za-z]+(?:\s+[A-Za-z]+){0,1})\s+here[,.]?\s/i,
+      // Ultra-strict: only patterns where speaker unambiguously names themselves
+      // "Hey Jonathan" = greeting someone = NOT a match. "Stuart here" = match.
+      const strict = [
+        /\bthis is\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,           // "this is Stuart"
+        /\bit'?s\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*[,.]?\s*(?:calling|here|from|$)/,  // "it's Stuart calling"
+        /\bmy name(?:'?s|\s+is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,  // "my name is Stuart"
+        /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+here\b/m,             // "Stuart here"
+        /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+speaking\b/,        // "Stuart speaking"
       ];
-      const skip = new Set(['the','a','an','here','there','calling','leaving','just','trying','regarding','about','i','you','we','they','he','she','it','is','my','your','our','their','with','and','or','to','from','for','at','of']);
-      for (const re of patterns) {
-        const m = stripped.match(re);
-        if (m?.[1]) {
-          const name = m[1].trim();
-          if (!skip.has(name.toLowerCase().split(' ')[0])) return name;
-        }
+      const skip = new Set(['The','A','An','Hi','Hey','Hello','Yes','No','So','Well','Just','This','That','Here','There','My','Your','Our','Their','It','Is','He','She','We','They','You','I']);
+      for (const re of strict) {
+        const m = transcript.match(re);  // use original transcript, not stripped
+        if (m?.[1] && !skip.has(m[1].split(' ')[0])) return m[1].trim();
       }
       return '';
     })();
@@ -1138,7 +1137,7 @@ async function extractMetadata(transcript, filename) {
         temperature: 0,
         messages: [{
           role: 'system',
-          content: 'Extract info from a voicemail transcript.\n\nRules:\n- caller: ONLY fill this if the speaker EXPLICITLY states their own name using phrases like "this is [name]", "it\'s [name]", "my name is [name]", "[name] here". If there is ANY doubt, return "". Do NOT guess. Do NOT use names mentioned after "for", "to reach", "trying to get", "calling for", "have [name] call me", or similar. When in doubt, leave blank.\n- phone: callback number the speaker leaves for a return call. Digits and dashes only, e.g. 402-555-0147. Empty string if none.\n- calldate: any date or time they mention. Empty string if none.\n\nReturn ONLY raw JSON, no markdown, no explanation: {"caller":"","phone":"","calldate":""}'
+          content: 'Extract info from a voicemail transcript. Return ONLY raw JSON: {"caller":"","phone":"","calldate":""}.\n\nFor CALLER: Leave blank ("") unless the speaker uses one of these EXACT self-introduction patterns:\n  - "this is [name]"\n  - "it\'s [name]" or "its [name]"\n  - "my name is [name]"\n  - "[name] here"\n  - "[name] speaking"\nDo NOT fill caller if a name only appears after words like: "for", "to reach", "trying to reach", "calling for", "looking for", "to speak with", "have", "tell", "ask", "Hey [name]" (greeting someone), or "please call [name]". A name being spoken TO is never the caller. If unsure, use "".\n\nFor PHONE: Only the callback number the caller explicitly leaves. Digits and dashes only.\nFor CALLDATE: Any date/time they mention. Empty string if none.'
         }, {
           role: 'user',
           content: 'Transcript: ' + transcript

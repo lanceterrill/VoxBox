@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <title>VoxLog — Voicemail Transcription Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
@@ -1778,7 +1780,7 @@ document.getElementById('push-close-btn').addEventListener('click', () => {
   document.getElementById('push-modal').classList.add('hidden');
 });
 document.getElementById('push-outlook-btn').addEventListener('click', () => {
-  const to = ['DOI.SHIP','nebraska.gov'].join('@');
+  const to = 'DOI.SHIP\u0040nebraska.gov';
   window.location.href = 'mailto:' + to + '?subject=VoxLog%20List%20Sync&body=VoxLog%20List%20Sync%20export%20attached.%20Do%20not%20modify%20this%20email%20subject.';
 });
 

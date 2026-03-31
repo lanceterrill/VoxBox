@@ -227,5 +227,3 @@ VoxLog/
 
 ---
 
-*Built for the Nebraska Department of Insurance (NDOI) — Internal use.*
-*Power Automate tenant: `usgovtexas` · SharePoint: `stateofne.sharepoint.com/sites/DOI.SHIP`*

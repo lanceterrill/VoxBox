@@ -3,8 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
 <title>VoxLog — Voicemail Transcription Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
@@ -1780,8 +1778,8 @@ document.getElementById('push-close-btn').addEventListener('click', () => {
   document.getElementById('push-modal').classList.add('hidden');
 });
 document.getElementById('push-outlook-btn').addEventListener('click', () => {
-  const to = 'DOI.SHIP\u0040nebraska.gov';
-  window.location.href = 'mailto:' + to + '?subject=VoxLog%20List%20Sync&body=VoxLog%20List%20Sync%20export%20attached.%20Do%20not%20modify%20this%20email%20subject.';
+  const _to = 'DOI.SHIP\u0040nebraska\u002egov';
+  window.location.href = 'mailto:' + _to + '?subject=VoxLog%20List%20Sync&body=VoxLog%20List%20Sync%20export%20attached.%20Do%20not%20modify%20this%20email%20subject.';
 });
 
 function pushToList() {
@@ -1837,4 +1835,13 @@ document.getElementById('help-overlay').addEventListener('click', e => {
     document.getElementById('help-overlay').classList.add('hidden');
 });
 document.querySelectorAll('.help-tab').forEach(tab => {
-  tab
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.help-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.help-section').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

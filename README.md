@@ -17,11 +17,13 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                        VOXLOG FLOW                          │
 │                                                             │
-│   .wav files   -->   Whisper AI   -->   Dashboard           │
+│  .wav files  -->  Whisper AI  -->  Dashboard                │
 │                                                             │
-│   Dashboard    -->   Push to List  -->  Email               │
+│  Dashboard   -->  Push to List  -->  Email                  │
 │                                                             │
-│   Email        -->   Power Automate --> MS List             │
+│  Email  -->  Power Automate  -->  MS List                   │
+│                          |                                  │
+│                          +--> ListSync/Processed (archive)  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -142,20 +144,27 @@
 │         │    │(unpushed)│    │DOI.SHIP@...│    │  Flow       │
 └─────────┘    └──────────┘    └────────────┘    └──────┬───────┘
                                                          │
-                                                         ▼
-                                                  ┌─────────────┐
-                                                  │  VoxLog     │
-                                                  │ Microsoft   │
-                                                  │    List     │
-                                                  └─────────────┘
+                                          ┌──────────────┤
+                                          │              │
+                                          ▼              ▼
+                                   ┌─────────────┐  ┌──────────────────┐
+                                   │  VoxLog     │  │  ListSync/       │
+                                   │ Microsoft   │  │  Processed       │
+                                   │    List     │  │  (JSON archive)  │
+                                   └─────────────┘  └──────────────────┘
 ```
 
 **Power Automate Flow (Standard Connectors Only):**
 
 ```
-Trigger  →  Compose         →  Parse JSON  →  Apply to each  →  Create item
-Shared       base64ToString     flat array     11 fields          VoxLog List
-Mailbox V2   attachment
+Trigger  -->  Compose          -->  Parse JSON  -->  Apply to each  -->  Create item
+Shared        base64ToString        flat array        11 fields           VoxLog List
+Mailbox V2    attachment
+                                                           |
+                                                           v
+                                                      Create file
+                                                      ListSync/Processed
+                                                      (JSON archive)
 ```
 
 > 📧 Subject must be exactly: **`VoxLog List Sync`**
@@ -218,4 +227,5 @@ VoxLog/
 
 ---
 
-
+*Built for the Nebraska Department of Insurance (NDOI) — Internal use.*
+*Power Automate tenant: `usgovtexas` · SharePoint: `stateofne.sharepoint.com/sites/DOI.SHIP`*

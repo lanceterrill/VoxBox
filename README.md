@@ -1,110 +1,222 @@
-# VoxLog — Voicemail Transcription Dashboard
+# 📞 VoxLog
+### *Voicemail Transcription & List Sync Dashboard*
 
-A single-file HTML tool for transcribing, reviewing, and syncing voicemail records to a Microsoft List via Power Automate. Built for the Nebraska Department of Insurance (NDOI).
+> **Drop it. Transcribe it. Push it.** — A zero-install, single-file HTML tool that turns raw `.wav` voicemail recordings into structured, searchable, actionable records — synced directly to Microsoft Lists via Power Automate.
 
----
-
-## Features
-
-- **Batch transcription** — drop `.wav` files, transcribe all at once via Groq Whisper
-- **AI metadata extraction** — caller name, phone number, and call date auto-filled from transcript
-- **Editable dashboard** — all fields editable inline; date/time pickers for call and return timestamps
-- **Status tracking** — Pending, In Progress, Review, Done, Unreachable
-- **SQLite backup/restore** — save and reload sessions as `.db` files
-- **CSV export** — full export for spreadsheet analysis
-- **Push to List** — sync records to a Microsoft List via email + Power Automate (no premium connectors required)
+![Version](https://img.shields.io/badge/version-1.0-00c896?style=flat-square&logo=github)
+![License](https://img.shields.io/badge/license-MIT-0099ff?style=flat-square)
+![Built With](https://img.shields.io/badge/built%20with-HTML%20%2F%20JS%20%2F%20CSS-ffaa00?style=flat-square)
+![Powered By](https://img.shields.io/badge/powered%20by-Groq%20Whisper-ff4455?style=flat-square)
+![No Install](https://img.shields.io/badge/no%20install-just%20open-00c896?style=flat-square)
 
 ---
 
-## Columns
+## ✨ What It Does
 
-Mirrors the VoxLog Microsoft List schema exactly:
-
-| Column | Auto-filled | Editable |
-|--------|-------------|----------|
-| Phone Number | ✓ from transcript | ✓ |
-| Caller Name | ✓ from transcript | ✓ |
-| Call Date | ✓ at transcription | ✓ (date picker) |
-| Call Time | ✓ at transcription | ✓ (time picker) |
-| Filename | — | ✓ |
-| Transcription | ✓ via Whisper | ✓ |
-| Staff Name | — | ✓ |
-| Returned Date | — | ✓ (date picker) |
-| Returned Time | — | ✓ (time picker) |
-| Notes | — | ✓ |
-| Status | — | ✓ (dropdown) |
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        VOXLOG FLOW                          │
+│                                                             │
+│  🎙️ .wav files  →  ⚡ Whisper AI  →  📋 Dashboard           │
+│                                                             │
+│  📋 Dashboard   →  📤 Push to List  →  📧 Email            │
+│                                                             │
+│  📧 Email       →  🤖 Power Automate  →  📊 MS List        │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Setup
+## 🚀 Features at a Glance
 
-### 1. Groq API Key
-VoxLog uses [Groq](https://console.groq.com) for free Whisper transcription.
-
-1. Sign up at **console.groq.com**
-2. Go to **API Keys** and create a new key (starts with `gsk_`)
-3. Enter it in the VoxLog key modal on load — stored in memory only, never saved to disk
-
-### 2. Power Automate Flow (Push to List)
-The Push to List feature requires a Power Automate cloud flow using standard connectors only.
-
-**Trigger:** When a new email arrives in a shared mailbox (V2)
-- Mailbox: `DOI.SHIP@nebraska.gov`
-- Subject Filter: `VoxLog List Sync`
-- Include Attachments: Yes
-
-**Actions:**
-1. **Compose** — `base64ToString(triggerOutputs()?['body/attachments'][0]['contentBytes'])`
-2. **Parse JSON** — Content: Compose output; Schema: flat array of VoxLog fields
-3. **Apply to each** — iterate Parse JSON body
-4. **Create item** — SharePoint → VoxLog List, map all 11 fields
-   ```
-   items('Apply_to_each')?['FieldName']
-   ```
-
-**VoxLog List columns** (all Single line of text except Status which is a Choice):
-
-`CallerName, PhoneNumber, CallDate, CallTime, Transcription, StaffName, ReturnedCallDate, ReturnedCallTime, Notes, OriginalFilename, Status`
+| Feature | Description |
+|---------|-------------|
+| 🎙️ **Batch Transcription** | Drop a whole folder of `.wav` files, transcribe all at once |
+| 🧠 **AI Metadata Extraction** | Caller name, phone number, and call date pulled automatically |
+| ✏️ **Inline Editing** | Every field editable directly in the table — no forms, no popups |
+| 📅 **Date & Time Pickers** | Call Date, Call Time, Returned Date, Returned Time |
+| 🔄 **Status Tracking** | Pending → In Progress → Review → Done → Unreachable |
+| 💾 **SQLite Backup** | Save and reload full sessions as `.db` files |
+| 📊 **CSV Export** | Full export for Excel / Google Sheets analysis |
+| 📤 **Push to MS List** | One-click sync to Microsoft List via Power Automate |
+| ✅ **Pushed Flag** | Green ✓ tracks which records have been synced |
+| 🔍 **Search & Sort** | Full-text search across all columns, multi-column sort |
+| 🌙 **Dark / Light Mode** | Persistent theme toggle |
+| 📵 **Zero Install** | Single `.html` file — just open it in a browser |
 
 ---
 
-## Usage
+## 🏗️ Architecture
 
-### Transcribe Voicemails
-1. Click **📁 Load WAV Files** or drag `.wav` files onto the drop zone
-2. Click **⚡ Transcribe All** — Groq Whisper processes each file
-3. Review and edit any auto-filled fields as needed
-
-### Save & Restore
-- **💾 Backup** — downloads `voxlog.db` (SQLite) with all records
-- **📂 Load Backup** — restores a saved session; new files can be added on top
-
-### Push to Microsoft List
-1. Click **📤 Push to List** — downloads a JSON file of unpushed records
-2. Click **✉️ Open Outlook Email** — Outlook opens pre-addressed to `DOI.SHIP@nebraska.gov`
-3. Confirm **From** is your personal account, not the shared mailbox
-4. Attach the JSON file and send
-5. Power Automate creates List items within ~1 minute
-6. Pushed records show a green **✓** in the Actions column
-
----
-
-## Technical Notes
-
-- Single-file HTML — no build steps, no dependencies to install
-- Uses [sql.js](https://github.com/sql-js/sql-js) (CDN) for SQLite in the browser
-- Uses [Groq API](https://console.groq.com/docs/openai) for Whisper transcription and LLaMA metadata extraction
-- API key is session-only — never written to disk or localStorage
-- `.db` backup format is standard SQLite — openable in DB Browser for SQLite or any SQLite tool
-- Power Automate flow uses standard M365 connectors only (no premium, no HTTP action)
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        AUTOMATED LANE                            │
+│                                                                  │
+│  📥 Outlook Shared    →   🤖 Power Automate    →   📊 VoxLog    │
+│     Mailbox               Cloud Flow                MS List      │
+│  DOI.SHIP@...             (Standard connectors)                  │
+│                                                                  │
+├──────────────────────────────────────────────────────────────────┤
+│                         MANUAL LANE                              │
+│                                                                  │
+│  🎙️ WAV Files    →   ⚡ Groq Whisper   →   🧠 LLaMA Meta        │
+│                                                                  │
+│  📋 VoxLog           →   ✏️ Staff Review    →   📤 Push          │
+│     Dashboard             & Edit                to List          │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Environment
+## ⚡ Quick Start
 
-Built for the NDOI / OCIO M365 GovCloud environment (`stateofne.sharepoint.com`).  
-Power Automate tenant: `usgovtexas` region.
+```
+1. 🌐  Open  →  lanceterrill.github.io/VoxLog
+2. 🔑  Enter your Groq API key  (console.groq.com → free)
+3. 📁  Load WAV Files  →  drag & drop or file picker
+4. ⚡  Transcribe All  →  AI fills caller, phone, date
+5. ✏️  Review & edit  →  click any cell
+6. 📤  Push to List  →  email JSON → Power Automate → Done
+```
 
 ---
 
-*VoxLog is an internal NDOI tool. Not for public use.*
+## 📋 Dashboard Columns
+
+> Mirrors the **VoxLog Microsoft List** schema exactly — what you see is what gets pushed.
+
+| Column | Auto-filled | Editable | Notes |
+|--------|:-----------:|:--------:|-------|
+| 📞 Phone Number | ✅ from transcript | ✅ | Primary sort key |
+| 👤 Caller Name | ✅ from transcript | ✅ | AI priority chain |
+| 📅 Call Date | ✅ at transcription | ✅ date picker | YYYY-MM-DD |
+| 🕐 Call Time | ✅ at transcription | ✅ time picker | HH:MM |
+| 📄 Filename | — | ✅ | Timestamped unique label |
+| 📝 Transcription | ✅ via Whisper | ✅ | Full verbatim text |
+| 👷 Staff Name | — | ✅ | Free text |
+| 📅 Returned Date | — | ✅ date picker | When callback made |
+| 🕐 Returned Time | — | ✅ time picker | When callback made |
+| 🗒️ Notes | — | ✅ | Free-form |
+| 🔵 Status | — | ✅ dropdown | 5 values |
+
+---
+
+## 🔄 Status Lifecycle
+
+```
+  🔵 Pending  →  🟡 In Progress  →  🩷 Review  →  🟢 Done
+                                              ↘  🔴 Unreachable
+```
+
+---
+
+## 🧠 AI Extraction Pipeline
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              CALLER NAME PRIORITY CHAIN                 │
+│                                                         │
+│  1️⃣  Name + Org   →  "Stuart @ Broadcast House"        │
+│  2️⃣  Name only    →  "Stuart"                          │
+│  3️⃣  Org only     →  "[Broadcast House]"               │
+│  4️⃣  Department   →  "[Billing Dept]"                  │
+│  5️⃣  Role/Title   →  "[Your Insurance Agent]"          │
+│  6️⃣  Nothing      →  ""  (blank beats wrong)           │
+│                                                         │
+│  ❌  NEVER uses: "calling for X", "Hey X", "reach X"   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Two-layer extraction:**
+- 🤖 **Groq LLaMA** (`llama3-8b-8192`) — primary, structured JSON prompt
+- 🔤 **Regex fallback** — fires when no API key or LLM returns empty
+
+---
+
+## 📤 Push to List — How It Works
+
+```
+┌─────────┐    ┌──────────┐    ┌────────────┐    ┌──────────────┐
+│ VoxLog  │    │  JSON    │    │  Outlook   │    │    Power     │
+│Dashboard│───▶│ Download │───▶│   Email    │───▶│  Automate   │
+│         │    │(unpushed)│    │DOI.SHIP@...│    │  Flow       │
+└─────────┘    └──────────┘    └────────────┘    └──────┬───────┘
+                                                         │
+                                                         ▼
+                                                  ┌─────────────┐
+                                                  │  VoxLog     │
+                                                  │ Microsoft   │
+                                                  │    List     │
+                                                  └─────────────┘
+```
+
+**Power Automate Flow (Standard Connectors Only):**
+
+```
+Trigger  →  Compose         →  Parse JSON  →  Apply to each  →  Create item
+Shared       base64ToString     flat array     11 fields          VoxLog List
+Mailbox V2   attachment
+```
+
+> 📧 Subject must be exactly: **`VoxLog List Sync`**
+> 🔒 Standard M365 connectors only — no premium, no HTTP action
+
+---
+
+## 💾 Save & Restore
+
+| Format | Purpose | Reloadable | Opens in Excel |
+|--------|---------|:----------:|:--------------:|
+| 💾 `.db` | Save & restore full session | ✅ | ❌ |
+| 📊 `.csv` | Share / analyze in spreadsheet | ❌ | ✅ |
+| 📄 `.json` | Push to MS List via PA flow | ❌ | ❌ |
+
+---
+
+## 🛠️ Technical Stack
+
+```
+┌─────────────────────────────────────────────────────┐
+│  🌐 Frontend    │  Vanilla HTML / CSS / JS           │
+│  🗄️ Database    │  sql.js (SQLite via WebAssembly)   │
+│  🎙️ Transcribe  │  Groq Whisper large-v3-turbo       │
+│  🧠 Metadata    │  Groq LLaMA 3 8B                   │
+│  🔄 Sync        │  Power Automate (standard only)    │
+│  📦 Deploy      │  GitHub Pages (single HTML file)   │
+│  🔑 Auth        │  Session only — never saved        │
+└─────────────────────────────────────────────────────┘
+```
+
+**Zero dependencies to install.** Everything runs in the browser.
+External CDN: `sql.js 1.10.2` · `IBM Plex Mono/Sans` (Google Fonts)
+
+---
+
+## 🔒 Privacy & Security
+
+- 🎙️ Audio sent to **Groq API only** for transcription
+- 🔑 API key stored **in memory only** — never written to disk or localStorage
+- 📋 All transcription data stays in **your browser** and `.db` file
+- 🏛️ Built for **NDOI / OCIO M365 GovCloud** (`stateofne.sharepoint.com`)
+
+---
+
+## 📁 Repo Structure
+
+```
+VoxLog/
+├── index.html        ← The entire application
+├── README.md         ← You are here
+└── voxlog.db         ← Your saved session (generated, not committed)
+```
+
+---
+
+## 🌐 Live App
+
+**[lanceterrill.github.io/VoxLog](https://lanceterrill.github.io/VoxLog)**
+
+---
+
+*Built for the Nebraska Department of Insurance (NDOI) — Internal use.*
+*Power Automate tenant: `usgovtexas` · SharePoint: `stateofne.sharepoint.com/sites/DOI.SHIP`*

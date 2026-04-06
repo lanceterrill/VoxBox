@@ -759,6 +759,7 @@
         <h3>Quick Start</h3>
         <ol class="help-steps">
           <li><b>Get a free Groq API key</b> at <b>console.groq.com</b> → sign up → API Keys. Starts with <span class="kbd">gsk_</span>.</li>
+          <li><b>Enable Zero Data Retention (ZDR)</b> — in the Groq Console go to <b>Settings → Data Controls → Zero Data Retention → Enable</b>. This prevents Groq from retaining any audio or transcript data on their servers, even temporarily. <b>Recommended before any production use.</b></li>
           <li><b>Enter your key</b> in the modal that appears on load, or click <b>🔑 Groq Key</b> in the header anytime.</li>
           <li><b>Load your WAV files</b> — click <b>📁 Load WAV Files</b> or drag-and-drop <span class="kbd">.wav</span> files directly onto the drop zone.</li>
           <li><b>Transcribe</b> — click <b>⚡ Transcribe All</b> to process every file. Or click the individual <b>⚡</b> button on any row. Each file is sent to Groq Whisper and results appear in seconds.</li>
@@ -766,7 +767,10 @@
           <li><b>Save your work</b> — click <b>💾 Save .db</b> to download a <span class="kbd">voxlog.db</span> file you can reload later.</li>
         </ol>
         <div class="tip-box"><b>Tip:</b> Demo mode (skip API key) lets you explore the full dashboard with sample data — useful for testing before you have a key.</div>
-        <div class="warn-box" style="margin-top:10px;"><b>NITC 8-609 Notice:</b> VoxLog sends voicemail audio to Groq (an external AI service) for transcription. Audio may contain personal data. Use is pending OCIO/RMC approval. Ensure callers are informed via a voicemail greeting disclosure before production use.</div>
+        <div class="warn-box" style="margin-top:10px;">
+          <b>NITC 8-609 Notice:</b> VoxLog sends voicemail audio to Groq (an external AI service) for transcription. Audio may contain personal data. Use is pending OCIO/RMC approval. Ensure callers are informed via a voicemail greeting disclosure before production use.<br><br>
+          <b>Data retention:</b> By default, Groq does <i>not</i> store audio or transcripts — data is processed in-memory and discarded. However, Groq may temporarily log data for platform reliability or abuse monitoring. To prevent this entirely, enable <b>Zero Data Retention (ZDR)</b> in your Groq Console under <b>Settings → Data Controls</b>. ZDR is free and available on all tiers. Usage metadata (request count, duration) is always collected but contains no audio or transcript content.
+        </div>
       </div>
 
       <!-- DASHBOARD -->
@@ -938,7 +942,8 @@
     <div class="compliance-banner">
       <b>⚠ NITC Policy 8-609 Notice</b><br>
       Voicemail audio may contain <b>personal data elements</b> (names, phone numbers, account info). Under NITC 8-609 §1(c), LOW IMPACT data containing personal data elements requires <b>OCIO review and approval</b> before use with public AI services.<br><br>
-      This tool is currently <b>pending RMC approval</b>. Use is authorized for internal testing only. Do not process voicemails containing HIGH or MODERATE IMPACT data. Contact your IT Security Officer with questions.
+      This tool is currently <b>pending RMC approval</b>. Use is authorized for internal testing only. Do not process voicemails containing HIGH or MODERATE IMPACT data. Contact your IT Security Officer with questions.<br><br>
+      <b>Recommended:</b> Before using, enable <b>Zero Data Retention (ZDR)</b> in your Groq Console → <b>Settings → Data Controls</b>. This prevents Groq from retaining any audio or transcript content on their servers.
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="skip-api-btn">Skip (demo mode)</button>

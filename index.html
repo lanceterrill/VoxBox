@@ -1114,10 +1114,10 @@ let sortAsc = true;
 document.getElementById('save-api-btn').addEventListener('click', async () => {
   // Check Ollama is running
   try {
-    const r = await fetch('http://127.0.0.1:11434/api/tags');
+    const r = await fetch('http://localhost:11434/api/tags');
     if (!r.ok) throw new Error();
   } catch {
-    toast('Cannot reach Ollama at 127.0.0.1:11434 — is it running?', 'error');
+    toast('Cannot reach Ollama at localhost:11434 — is it running?', 'error');
     return;
   }
   // Check whisper server is running
@@ -1361,7 +1361,7 @@ async function extractMetadata(transcript, filename) {
 
   if (!demoMode) {
     try {
-      const resp = await fetch('http://127.0.0.1:11434/api/chat', {
+      const resp = await fetch('http://localhost:11434/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VoxLog — Voicemail Transcription Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script src="sql-wasm.js"></script>
 <style>
   :root {
     --bg:       #0e0f11;
@@ -934,21 +933,18 @@
 <!-- API Key Modal -->
 <div class="modal-overlay" id="api-modal">
   <div class="modal">
-    <h2>🔑 Groq API Key</h2>
-    <p>VoxLog uses <b>Groq Whisper</b> to transcribe your voicemails — free tier, fast, and highly accurate.<br><br>Get a free key at <b>console.groq.com → API Keys</b>. Stored in memory only for this session.</p>
-    <div class="modal-field">
-      <label>Groq API Key</label>
-      <input type="password" id="api-key-input"  placeholder="gsk_..." autocomplete="off">
-    </div>
+    <h2>🤖 Local AI Setup</h2>
+    <p>VoxLog is running in <b>fully offline mode</b>.<br><br>
+    Make sure both services are running before connecting:<br><br>
+    <span style="font-family:var(--mono); font-size:12px; color:var(--accent);">① whisper_server.py</span> — runs at <code style="color:var(--accent2)">localhost:5001</code> (speech-to-text)<br>
+    <span style="font-family:var(--mono); font-size:12px; color:var(--accent);">② ollama serve</span> — runs at <code style="color:var(--accent2)">localhost:11434</code> (caller extraction)</p>
     <div class="compliance-banner">
-      <b>⚠ NITC Policy 8-609 Notice</b><br>
-      Voicemail audio may contain <b>personal data elements</b> (names, phone numbers, account info). Under NITC 8-609 §1(c), LOW IMPACT data containing personal data elements requires <b>OCIO review and approval</b> before use with public AI services.<br><br>
-      This tool is currently <b>pending RMC approval</b>. Use is authorized for internal testing only. Do not process voicemails containing HIGH or MODERATE IMPACT data. Contact your IT Security Officer with questions.<br><br>
-      <b>Data retention:</b> Inference APIs ZDR is <b>enabled</b> on this Groq account — audio and transcripts are not logged or retained by Groq. Verify anytime at <b>console.groq.com → Settings → Data Controls</b>.
+      <b>✅ Local Mode — No Data Leaves Your Machine</b><br>
+      Audio is transcribed by <b>faster-whisper</b> running locally. Metadata extraction uses <b>Ollama qwen2.5</b> locally. No external API calls are made. NITC 8-609 external data transfer requirements do not apply.
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" id="skip-api-btn">Skip (demo mode)</button>
-      <button class="btn btn-primary" id="save-api-btn">Save & Continue →</button>
+      <button class="btn btn-primary" id="save-api-btn">Connect & Continue →</button>
     </div>
   </div>
 </div>
@@ -963,7 +959,7 @@
     <div class="stat-pill">Total: <b id="stat-total">0</b></div>
     <div class="stat-pill">Done: <b id="stat-reviewed">0</b></div>
     <div class="stat-pill">Pending: <b id="stat-pending">0</b></div>
-    <button class="btn btn-secondary" id="change-key-btn" style="font-size:12px; padding:5px 10px;">🔑 Groq Key</button>
+    <button class="btn btn-secondary" id="change-key-btn" style="font-size:12px; padding:5px 10px;">🤖 AI Status</button>
     <button class="btn btn-secondary" id="help-btn" style="font-size:12px; padding:5px 10px;">❓ Help</button>
     <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode">🌙</button>
   </div>
@@ -1026,7 +1022,7 @@
     <div class="drop-title">Drop voicemail .wav files here</div>
     <div class="drop-sub">Or click <b>Load WAV Files</b> above — select multiple files from your folder</div>
     <div class="drop-sub" style="margin-top:4px; font-size:12px;">Supports .wav • Add more files anytime, even after transcribing</div>
-    <div class="drop-sub" style="margin-top:8px; font-size:11px; color:var(--muted);">🤖 Audio is processed by <b>Groq Whisper AI</b> (external service) — see NITC 8-609 compliance notice above</div>
+    <div class="drop-sub" style="margin-top:8px; font-size:11px; color:var(--muted);">🤖 Audio is processed by <b>local Whisper + Ollama</b> — fully offline, no data leaves your machine</div>
   </div>
 
   <!-- Dashboard -->
@@ -1061,7 +1057,7 @@
     <span><span class="dot dot-green"></span> VoxLog v1.0</span>
     <span id="sb-files">No files loaded</span>
     <span id="sb-api">AI Engine: <span id="sb-api-status" style="color:var(--muted)">not configured</span></span>
-    <span class="ai-badge">🤖 Groq whisper-large-v3-turbo + llama3-8b-8192</span>
+    <span class="ai-badge">🤖 Local: faster-whisper + qwen2.5</span>
     <span id="sb-sel" style="display:none">Selected: <b id="sb-sel-count">0</b></span>
     <span style="margin-left:auto; color:var(--muted); font-size:10px;">NITC 8-609 | RMC Review Pending</span>
   </div>
@@ -1108,7 +1104,6 @@
 })();
 
 // ── STATE ──────────────────────────────────────────────────────────────────
-let apiKey = '';
 let demoMode = false;
 let voicemails = []; // { id, file, filename, size, sizeLabel, transcript, caller, notes, status, transcribing }
 let nextId = 1;
@@ -1118,23 +1113,33 @@ let sortAsc = true;
 let SQL = null; // sql.js instance
 
 // ── SQL.JS INIT ────────────────────────────────────────────────────────────
-initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` })
+initSqlJs({ locateFile: f => f })
   .then(s => { SQL = s; })
   .catch(e => console.warn('sql.js failed to load:', e));
 
 // ── INIT ───────────────────────────────────────────────────────────────────
-document.getElementById('save-api-btn').addEventListener('click', () => {
-  const val = document.getElementById('api-key-input').value.trim();
-  if (!val || val.length < 10) {
-    toast('Enter a valid Groq API key', 'error');
+document.getElementById('save-api-btn').addEventListener('click', async () => {
+  // Check Ollama is running
+  try {
+    const r = await fetch('http://127.0.0.1:11434/api/tags');
+    if (!r.ok) throw new Error();
+  } catch {
+    toast('Cannot reach Ollama at 127.0.0.1:11434 — is it running?', 'error');
     return;
   }
-  apiKey = val;
+  // Check whisper server is running
+  try {
+    const r = await fetch('http://127.0.0.1:5001/health');
+    if (!r.ok) throw new Error();
+  } catch {
+    toast('Cannot reach Whisper server at 127.0.0.1:5001 — run whisper_server.py first', 'error');
+    return;
+  }
   demoMode = false;
   document.getElementById('api-modal').classList.add('hidden');
-  document.getElementById('sb-api-status').textContent = 'Groq Whisper ✓';
+  document.getElementById('sb-api-status').textContent = 'Local AI ✓';
   document.getElementById('sb-api-status').style.color = 'var(--accent)';
-  toast('API key saved. Ready to transcribe!');
+  toast('Connected to Ollama + Whisper server. Ready to transcribe!');
 });
 
 document.getElementById('skip-api-btn').addEventListener('click', () => {
@@ -1147,7 +1152,6 @@ document.getElementById('skip-api-btn').addEventListener('click', () => {
 
 document.getElementById('change-key-btn').addEventListener('click', () => {
   document.getElementById('api-modal').classList.remove('hidden');
-  document.getElementById('api-key-input').value = apiKey;
 });
 
 // ── FILE LOADING ───────────────────────────────────────────────────────────
@@ -1288,47 +1292,21 @@ async function transcribeFile(file, label) {
     return generateDemoTranscript(label || file.name);
   }
 
-  // Convert to base64 and build multipart manually to avoid FormData iframe restriction
-  const base64 = await fileToBase64(file);
-  const boundary = '----WavBoundary' + Math.random().toString(36).slice(2);
+  const formData = new FormData();
+  formData.append('file', file, label || file.name);
 
-  // Build raw multipart body as a string → Uint8Array
-  const filename = label || file.name || 'audio.wav';
-  const pre =
-    `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3-turbo\r\n` +
-    `--${boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n` +
-    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: audio/wav\r\n\r\n`;
-  const post = `\r\n--${boundary}--\r\n`;
-
-  // Decode base64 → binary bytes
-  const binStr = atob(base64);
-  const bytes  = new Uint8Array(binStr.length);
-  for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
-
-  const enc    = new TextEncoder();
-  const preArr = enc.encode(pre);
-  const postArr= enc.encode(post);
-  const body   = new Uint8Array(preArr.length + bytes.length + postArr.length);
-  body.set(preArr, 0);
-  body.set(bytes,  preArr.length);
-  body.set(postArr,preArr.length + bytes.length);
-
-  const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+  const response = await fetch('http://127.0.0.1:5001/transcribe', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': `multipart/form-data; boundary=${boundary}`
-    },
-    body: body
+    body: formData
   });
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `HTTP ${response.status}`);
+    throw new Error(err?.error || `HTTP ${response.status}`);
   }
 
-  const text = await response.text();
-  return text.trim() || '[No speech detected]';
+  const data = await response.json();
+  return data.text?.trim() || '[No speech detected]';
 }
 
 // ── METADATA EXTRACTION (Groq LLM) ───────────────────────────────────────
@@ -1388,35 +1366,36 @@ async function extractMetadata(transcript, filename) {
     return { caller, phone: phoneM ? phoneM[1] : '', calldate: '' };
   };
 
-  if (!apiKey || demoMode) return fallback();
-
-  try {
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama3-8b-8192',
-        max_tokens: 150,
-        temperature: 0,
-        messages: [{
-          role: 'system',
-          content: 'Extract caller identity from a voicemail. Return ONLY raw JSON: {"caller":"","phone":"","calldate":""}. No markdown.\n\nFor CALLER use the best identifier in this priority:\n1. Name + org/place: return \"Name @ Place\" e.g. \"Stuart @ Broadcast House\"\n2. Name only: return the name e.g. \"Stuart\"\n3. No name but org/company/place: return \"[Org]\" e.g. \"[Broadcast House]\"\n4. No name but dept: return \"[Billing Dept]\" etc\n5. No name but role: return \"[Your Insurance Agent]\" etc\n6. Nothing clear: return \"\"\n\nValid self-ID patterns: \"this is X\", \"it\'s X\", \"it\'s me, X\", \"hey it\'s X\", \"hey, it\'s me X\", \"my name is X\", \"X here\", \"X calling\", \"X speaking\", \"X over here\", \"X over here at Y\", \"X calling from Y\". For informal patterns like \"it\'s me, X\" or \"hey it\'s me, X\", the name follows \"me\".\n\nNEVER use names after: \"for\", \"to reach\", \"trying to reach\", \"calling for\", \"Hey X\" (greeting), \"have X call\", \"please tell X\" — those are recipients not callers.\n\nFor PHONE: callback number left. Digits and dashes only. Empty if none.\nFor CALLDATE: any date/time mentioned. Empty if none.'
-        }, {
-          role: 'user',
-          content: 'Transcript: ' + transcript
-        }]
-      })
-    });
-    if (!resp.ok) return fallback();
-    const data = await resp.json();
-    const raw = data.choices?.[0]?.message?.content?.trim() || '{}';
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
-    if (!parsed.caller) parsed.caller = fallback().caller;
-    return parsed;
-  } catch(e) {
-    return fallback();
+  if (!demoMode) {
+    try {
+      const resp = await fetch('http://127.0.0.1:11434/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'qwen2.5:latest',
+          stream: false,
+          options: { temperature: 0 },
+          messages: [{
+            role: 'system',
+            content: 'Extract caller identity from a voicemail. Return ONLY raw JSON: {"caller":"","phone":"","calldate":""}. No markdown.\n\nFor CALLER use the best identifier in this priority:\n1. Name + org/place: return \"Name @ Place\" e.g. \"Stuart @ Broadcast House\"\n2. Name only: return the name e.g. \"Stuart\"\n3. No name but org/company/place: return \"[Org]\" e.g. \"[Broadcast House]\"\n4. No name but dept: return \"[Billing Dept]\" etc\n5. No name but role: return \"[Your Insurance Agent]\" etc\n6. Nothing clear: return \"\"\n\nValid self-ID patterns: \"this is X\", \"it\'s X\", \"it\'s me, X\", \"hey it\'s X\", \"hey, it\'s me X\", \"my name is X\", \"X here\", \"X calling\", \"X speaking\", \"X over here\", \"X over here at Y\", \"X calling from Y\". For informal patterns like \"it\'s me, X\" or \"hey it\'s me, X\", the name follows \"me\".\n\nNEVER use names after: \"for\", \"to reach\", \"trying to reach\", \"calling for\", \"Hey X\" (greeting), \"have X call\", \"please tell X\" — those are recipients not callers.\n\nFor PHONE: callback number left. Digits and dashes only. Empty if none.\nFor CALLDATE: any date/time mentioned. Empty if none.'
+          }, {
+            role: 'user',
+            content: 'Transcript: ' + transcript
+          }]
+        })
+      });
+      if (!resp.ok) return fallback();
+      const data = await resp.json();
+      const raw = data.message?.content?.trim() || '{}';
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      if (!parsed.caller) parsed.caller = fallback().caller;
+      return parsed;
+    } catch(e) {
+      return fallback();
+    }
   }
+  return fallback();
 }
 
 // Parse date/time hint from voicemail filename (e.g. 20240314_143022.wav, 031126.wav)

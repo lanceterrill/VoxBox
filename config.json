@@ -2,8 +2,7 @@
   "app": {
     "name": "VoxLog",
     "version": "1.0.0",
-    "environment": "production",
-    "source": "https://github.com/lanceterrill/VoxLog"
+    "environment": "production"
   },
   "transcription": {
     "provider": "microsoft_ai_builder",
@@ -30,5 +29,6 @@
     "statusValues": ["Pending", "In Progress", "Review", "Done", "Unreachable"],
     "defaultStatus": "Pending",
     "theme": "ndoi"
-  }
+  },
+  "source": "https://github.com/lanceterrill/VoxLog"
 }
